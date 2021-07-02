@@ -5,9 +5,9 @@ import torch
 import numpy as np
 import time
 
-sys.path.insert(1, r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev\Scripts\Cleaned_scripts\Models')
-sys.path.insert(2, r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev\Scripts\Cleaned_scripts\Data_pros')
-sys.path.insert(3, r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev\Scripts\Cleaned_scripts\Lists')
+sys.path.insert(1, r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Models')
+sys.path.insert(2, r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Data_pros')
+sys.path.insert(3, r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists')
 
 
 import data_augmentation as aug
@@ -81,7 +81,7 @@ time_tot = 0.0
 
 # Set device, folders and patient list
 device = torch.device("cuda")
-pat_list = np.load(r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev\Scripts\Cleaned_scripts\Lists\shuf_patlist.npy')
+pat_list = np.load(r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists\shuf_patlist.npy')
 pat_list = np.delete(pat_list, 28)
 pat_list = np.delete(pat_list, 11)
 dat_folder = r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev\Data\Segment\Orig_engine\hit_check'
