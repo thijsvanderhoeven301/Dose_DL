@@ -24,15 +24,21 @@ class SegNet3D(nn.Module):
         super(SegNet3D, self).__init__()
         self.input = nn.Conv3d(4, 8, 3, padding=1)
         self.conv1_2 = nn.Conv3d(8, 8, 3, padding=1)
+        self.conv1_3 = nn.Conv3d(8, 8, 3, padding=1)
         self.conv2_1 = nn.Conv3d(8, 16, 3, padding=1)
         self.conv2_2 = nn.Conv3d(16, 16, 3, padding=1)
+        self.conv2_3 = nn.Conv3d(16, 16, 3, padding=1)
         self.conv3_1 = nn.Conv3d(16, 32, 3, padding=1)
         self.conv3_2 = nn.Conv3d(32, 32, 3, padding=1)
+        self.conv3_3 = nn.Conv3d(32, 32, 3, padding=1)
         self.conv4_1 = nn.Conv3d(32, 64, 3, padding=1)
         self.conv4_2 = nn.Conv3d(64, 64, 3, padding=1)
+        self.conv4_3 = nn.Conv3d(64, 64, 3, padding=1)
         self.conv5_1 = nn.Conv3d(64, 128, 3, padding=1)
         self.conv5_2 = nn.Conv3d(128, 128, 3, padding=1)
-        self.pool = nn.MaxPool3d(2, 2, return_indices=True)
+        self.conv5_3 = nn.Conv3d(128, 128, 3, padding=1)
+        self.conv5_4 = nn.Conv3d(128, 128, 3, padding=1)
+        self.pool = nn.MaxPool3d(2, 2, return_indices=False)
         self.convup1 = nn.Conv3d(128, 64, 3, padding=1)
         self.convup2 = nn.Conv3d(64, 32, 3, padding=1)
         self.convup3 = nn.Conv3d(32, 16, 3, padding=1)
@@ -43,11 +49,30 @@ class SegNet3D(nn.Module):
         self.uptrans4 = nn.ConvTranspose3d(16, 8, 2, stride=2)
         self.output = nn.Conv3d(8, 1, 1, padding=0)
         self.dice_output = nn.Conv3d(8, 2, 1, padding=0)
-        self.GN1 = nn.GroupNorm(1, 8)
-        self.GN2 = nn.GroupNorm(2, 16)
-        self.GN3 = nn.GroupNorm(4, 32)
-        self.GN4 = nn.GroupNorm(8, 64)
-        self.GN5 = nn.GroupNorm(16, 128)
+        self.GN1_1 = nn.GroupNorm(1, 8)
+        self.GN1_2 = nn.GroupNorm(1, 8)
+        self.GN1_3 = nn.GroupNorm(1, 8)
+        self.GN1_4 = nn.GroupNorm(1, 8)
+        self.GN1_up = nn.GroupNorm(1, 8)
+        self.GN2_1 = nn.GroupNorm(2, 16)
+        self.GN2_2 = nn.GroupNorm(2, 16)
+        self.GN2_3 = nn.GroupNorm(2, 16)
+        self.GN2_4 = nn.GroupNorm(2, 16)
+        self.GN2_up = nn.GroupNorm(2, 16)
+        self.GN3_1 = nn.GroupNorm(4, 32)
+        self.GN3_2 = nn.GroupNorm(4, 32)
+        self.GN3_3 = nn.GroupNorm(4, 32)
+        self.GN3_4 = nn.GroupNorm(4, 32)
+        self.GN3_up = nn.GroupNorm(4, 32)
+        self.GN4_1 = nn.GroupNorm(8, 64)
+        self.GN4_2 = nn.GroupNorm(8, 64)
+        self.GN4_3 = nn.GroupNorm(8, 64)
+        self.GN4_4 = nn.GroupNorm(8, 64)
+        self.GN4_up = nn.GroupNorm(8, 64)
+        self.GN5_1 = nn.GroupNorm(16, 128)
+        self.GN5_2 = nn.GroupNorm(16, 128)
+        self.GN5_3 = nn.GroupNorm(16, 128)
+        self.GN5_4 = nn.GroupNorm(16, 128)
         self.Sig = nn.Sigmoid()
         self.softmax = nn.Softmax(dim=1)
         self.linear = nn.Linear(1, 1, bias=False)
@@ -55,44 +80,44 @@ class SegNet3D(nn.Module):
 
 
     def forward(self, x):
-        x1 = F.relu(self.GN1(self.conv1_2(F.relu(self.GN1(self.input(x))))))
-        x, ind1 = self.pool(x1)
+        x1 = F.relu(self.GN1_2(self.conv1_2(F.relu(self.GN1_1(self.input(x))))))
+        x = self.pool(x1)
 
-        x2 = F.relu(self.GN2(self.conv2_2(F.relu(self.GN2(self.conv2_1(x))))))
-        x, ind2 = self.pool(x2)
+        x2 = F.relu(self.GN2_2(self.conv2_2(F.relu(self.GN2_1(self.conv2_1(x))))))
+        x = self.pool(x2)
 
-        x3 = F.relu(self.GN3(self.conv3_2(F.relu(self.GN3(self.conv3_1(x))))))
-        x, ind3 = self.pool(x3)
+        x3 = F.relu(self.GN3_2(self.conv3_2(F.relu(self.GN3_1(self.conv3_1(x))))))
+        x = self.pool(x3)
 
-        x4 = F.relu(self.GN4(self.conv4_2(F.relu(self.GN4(self.conv4_1(x))))))
-        x, ind4 = self.pool(x4)
+        x4 = F.relu(self.GN4_2(self.conv4_2(F.relu(self.GN4_1(self.conv4_1(x))))))
+        x = self.pool(x4)
 
-        x = F.relu(self.GN5(self.conv5_2(F.relu(self.GN5(self.conv5_1(x))))))
-        x = F.relu(self.GN5(self.conv5_2(F.relu(self.GN5(self.conv5_2(x))))))
+        x = F.relu(self.GN5_2(self.conv5_2(F.relu(self.GN5_1(self.conv5_1(x))))))
+        x = F.relu(self.GN5_4(self.conv5_4(F.relu(self.GN5_3(self.conv5_3(x))))))
 
-        x = F.relu(self.GN4(self.uptrans1(x))) # When upsampling with only transpose convolution
-        del ind4
+        x = F.relu(self.GN4_up(self.uptrans1(x))) # When upsampling with only transpose convolution
+        
         x = torch.cat((x, x4), dim=1)
         del x4
-        x = F.relu(self.GN4(self.conv4_2(F.relu(self.GN4(self.convup1(x))))))
+        x = F.relu(self.GN4_4(self.conv4_3(F.relu(self.GN4_3(self.convup1(x))))))
 
-        x = F.relu(self.GN3(self.uptrans2(x))) # When upsampling with only transpose convolution
-        del ind3
+        x = F.relu(self.GN3_up(self.uptrans2(x))) # When upsampling with only transpose convolution
+        
         x = torch.cat((x, x3), dim=1)
         del x3
-        x = F.relu(self.GN3(self.conv3_2(F.relu(self.GN3(self.convup2(x))))))
+        x = F.relu(self.GN3_4(self.conv3_3(F.relu(self.GN3_3(self.convup2(x))))))
 
-        x = F.relu(self.GN2(self.uptrans3(x))) # When upsampling with only transpose convolution
-        del ind2
+        x = F.relu(self.GN2_up(self.uptrans3(x))) # When upsampling with only transpose convolution
+        
         x = torch.cat((x, x2), dim=1)
         del x2
-        x = F.relu(self.GN2(self.conv2_2(F.relu(self.GN2(self.convup3(x))))))
+        x = F.relu(self.GN2_3(self.conv2_3(F.relu(self.GN2_3(self.convup3(x))))))
 
-        x = F.relu(self.GN1(self.uptrans4(x))) # When upsampling with only transpose convolution
-        del ind1
+        x = F.relu(self.GN1_up(self.uptrans4(x))) # When upsampling with only transpose convolution
+        
         x = torch.cat((x, x1), dim=1)
         del x1
-        x = F.relu(self.GN1(self.conv1_2(F.relu(self.GN1(self.convup4(x))))))
+        x = F.relu(self.GN1_4(self.conv1_3(F.relu(self.GN1_3(self.convup4(x))))))
         #x = self.softmax(self.dice_output(x))
         #x = self.clinear(self.Sig(self.output(x)))#
         x = F.relu(self.output(x))

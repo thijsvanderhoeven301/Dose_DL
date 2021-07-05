@@ -179,7 +179,7 @@ def input_data(N):
     patID = patIDs[N]
     struc_list = r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists\Structures.txt'    #Location of list with structures
     PTV_struct = r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists\PTV.txt'           #Location of list with PTV names
-    data_dir = r'D:\dicomserver1417d\data'  #MODIFY THIS                                                                            #Location of DICOM data
+    data_dir = r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Data'                      #Location of DICOM data
     # MODIFY STANDARDIZED ARRAY SIZE #
     input_size = [144, 64, 96]                                                                                          #Standardized size
     ### MODIFY STOP ###

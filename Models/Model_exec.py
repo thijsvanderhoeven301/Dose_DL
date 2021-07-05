@@ -110,8 +110,8 @@ for epoch in range(1):
         pred_dose = np.load(dat_folder + '\Train\pat' + str(patient) + '.npy')
         ### Uncomment if necessary, select proper input at struct_in line ###
         #structure_6 = np.concatenate((structure, np.expand_dims(np.swapaxes(pred_dose, 1, 2), axis=0)), axis=0)
-        structure_1 = np.expand_dims(np.swapaxes(pred_dose, 1, 2), 0)
-        struct_in = structure_1 #Either structure, structure_1 or structure_6
+        #structure_1 = np.expand_dims(np.swapaxes(pred_dose, 1, 2), 0)
+        struct_in = structure #Either structure, structure_1 or structure_6
         ### End of input data selection ###
         for i in range(len(aug_list)):
             optimizer.zero_grad()
