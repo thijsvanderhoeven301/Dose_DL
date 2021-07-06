@@ -10,7 +10,7 @@ def max_dose(dose, struct_arr, structure):
     :params structure: name of structure
     :return dmax: Maximum dose
     """
-    struc_list = r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev/Lists/Structures.txt'
+    struc_list = r'C:/Users/thijs/Documents/master applied physics/mep/project_repository/Dose_DL/Lists/Structures.txt'
     with open(struc_list) as s:
         structs = [line.rstrip()[1:-1] for line in s]
     structs.append('PTVpros+vs')
