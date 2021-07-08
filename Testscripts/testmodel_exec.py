@@ -64,7 +64,7 @@ model = UNet()
 optimizer = optim.Adam(model.parameters(), lr=1e-03)
 
 #apply initial weights, comment if loading parameters
-#model.apply(weights_init)
+model.apply(weights_init)
 
 #Uncomment if loading model parameters
 #checkpoint = torch.load('param.npy')
