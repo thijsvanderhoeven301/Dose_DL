@@ -110,7 +110,7 @@ def weights_init(m):
     if isinstance(m, nn.ConvTranspose3d):
         torch.nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
-def model_train(augment, cuda, load_model, save_model, loss_type, N, weights):
+def model_train(augment, cuda, load_model, save_model, loss_type, N, N_pat, weights):
 
     # Initialize loss values, and time variable
     training_loss = []
@@ -177,10 +177,10 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N, weights):
         running_loss = []
     
         # Loop over training patients
-        for patient in range(64):
+        for patient in range(N_pat):
             
             if patient % 10 == 0:
-                print("Training patient ", '%d'%(int(patient+1)), "of 64, in epoch: ", '%d'%(int(epoch+1)))
+                print("Training patient ", '%d'%(int(patient+1)), "of ", '%d'%(int(N_pat)), "in epoch: ", '%d'%(int(epoch+1)))
         
             # Import data of current iteration patient
             structure, dose, startmod, endmod = data_import.input_data(pat_list[patient])
@@ -273,9 +273,9 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N, weights):
                     if loss_type == 'MSE':
                         loss = loss_func(output, dos_gpu_tens)
                     elif loss_type == 'heaviside':
-                        loss = heaviweight(output, dos_gpu_tens, structure)
+                        loss = heaviweight(output, dos_gpu_tens, structure, weights, device)
                     elif loss_type == 'weighted':
-                        loss = mse_weight(output, dos_gpu_tens, structure)
+                        loss = mse_weight(output, dos_gpu_tens, structure, weights, device)
                 
                     # Transfer output to cpu
                     output_cpu = output.cpu()
