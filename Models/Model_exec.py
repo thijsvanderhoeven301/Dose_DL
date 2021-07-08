@@ -18,9 +18,9 @@ import torch
 import numpy as np
 import time
 
-sys.path.insert(1, r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Models')
-sys.path.insert(2, r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Data_pros')
-sys.path.insert(3, r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists')
+sys.path.insert(1, r'C:\Users\t.vd.hoeven\Dose_DL\Models')
+sys.path.insert(2, r'C:\Users\t.vd.hoeven\Dose_DL\Data_pros')
+sys.path.insert(3, r'C:\Users\t.vd.hoeven\Dose_DL\Lists')
 
 
 import data_augmentation as aug
@@ -28,7 +28,7 @@ import data_import
 from U_Net import UNet, SeqUNet, InDoseUNet
 
 
-def mse_weight(output, truth, structures):
+def mse_weight(output, truth, structures, weight_input, device):
     """
     Loss function implementation for weighted MSE
 
@@ -51,16 +51,16 @@ def mse_weight(output, truth, structures):
     EXT = structures[3, :, :, :]
     OAR = np.sum(structures[0:3, :, :, :], axis=0) > 0
     PTV = structures[-1, :, :, :]
-    weights[EXT] = 1
-    weights[OAR] = 50
-    weights[PTV] = 100
+    weights[EXT] = weight_input[0]
+    weights[OAR] = weight_input[1]
+    weights[PTV] = weight_input[2]
     weights = torch.Tensor(weights).to(device)
     loss = torch.mean(weights*(output - truth)**2)
 
     return loss
 
 
-def heaviweight(output, truth, structures):
+def heaviweight(output, truth, structures, weight_input, device):
     """
     Loss function implementation for Heaviside MSE
 
@@ -83,10 +83,10 @@ def heaviweight(output, truth, structures):
     w2 = np.ones(output.squeeze().size())
     OAR = np.sum(structures[0:3, :, :, :], axis=0) > 0
     PTV = structures[-1, :, :, :]
-    w1[PTV] = 5 * 10
-    w1[OAR] = 6 * 10
-    w2[PTV] = 10 * 10
-    w2[OAR] = 3 * 10
+    w1[PTV] = weight_input[0]
+    w1[OAR] = weight_input[1]
+    w2[PTV] = weight_input[2]
+    w2[OAR] = weight_input[3]
     w1 = torch.Tensor(w1).to(device)
     w2 = torch.Tensor(w2).to(device)
     OT = output - truth
@@ -110,7 +110,7 @@ def weights_init(m):
     if isinstance(m, nn.ConvTranspose3d):
         torch.nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
-def model_train(network, augment, load_model, save_model, loss_type):
+def model_train(augment, cuda, load_model, save_model, loss_type, N, weights):
 
     # Initialize loss values, and time variable
     training_loss = []
@@ -120,20 +120,20 @@ def model_train(network, augment, load_model, save_model, loss_type):
     time_tot = 0.0
 
     # Set device to cuda, if cuda is available, otherwise cpu
-    if torch.cuda.is_available():
-        torch.device("cuda")
-        cuda = True
+    if cuda:
+        device = torch.device("cuda")
+        print("Using cuda")
     else:
         device = 'cpu'
-        cuda = False
+        print("Using cpu")
 
     # Shuffle the patient list and delete outliers
-    pat_list = np.load(r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists\shuf_patlist.npy')
+    pat_list = np.load(r'C:\Users\t.vd.hoeven\Dose_DL\Lists\shuf_patlist.npy')
     pat_list = np.delete(pat_list, 28)
     pat_list = np.delete(pat_list, 11)
 
     # Initialize the network
-    model = network
+    model = UNet()
     optimizer = optim.Adam(model.parameters(), lr=1e-03)
 
     #Apply weights either pretrained or initiated
@@ -169,7 +169,7 @@ def model_train(network, augment, load_model, save_model, loss_type):
     start = time.time()
 
     ## TRAINING ##
-    for epoch in range(1):
+    for epoch in range(N):
         # Tell model to train
         model.train()
     
@@ -178,11 +178,7 @@ def model_train(network, augment, load_model, save_model, loss_type):
     
         # Loop over training patients
         for patient in range(64):
-            ######TEMPORARY##
-            if pat_list[patient] > 9:
-                print("This patient currently doesn't exist, skipping")
-                continue
-            #################
+            
             if patient % 10 == 0:
                 print("Training patient ", '%d'%(int(patient+1)), "of 64, in epoch: ", '%d'%(int(epoch+1)))
         
@@ -194,17 +190,17 @@ def model_train(network, augment, load_model, save_model, loss_type):
             
                 # Reset optimizer gradient
                 optimizer.zero_grad()
-            
+                
                 # Select augmentation
                 tr_val = aug_list[i]
             
                 # Generate (augmented) structure in tensor form
                 str_gpu_tens = aug.structure_transform(structure.copy(), tr_val).to(device)
-            
+                
                 # Feed the structure forward through model
                 output = model(str_gpu_tens)
                 del str_gpu_tens
-            
+
                 # Generate (augmented) true dose in tensor form
                 dos_gpu_tens = aug.dose_transform(dose, tr_val).to(device)
             
@@ -212,10 +208,10 @@ def model_train(network, augment, load_model, save_model, loss_type):
                 if loss_type == 'MSE':
                     loss = loss_func(output, dos_gpu_tens)
                 elif loss_type == 'heaviside':
-                    loss = heaviweight(output, dos_gpu_tens, structure)
+                    loss = heaviweight(output, dos_gpu_tens, structure, weights, device)
                 elif loss_type == 'weighted':
-                    loss = mse_weight(output, dos_gpu_tens, structure)
-            
+                    loss = mse_weight(output, dos_gpu_tens, structure, weights, device)
+                
                 # Transfer output to cpu
                 output_cpu = output.cpu()
                 del output
@@ -224,7 +220,7 @@ def model_train(network, augment, load_model, save_model, loss_type):
                 # Perform optimization
                 loss.backward()
                 optimizer.step()
-            
+                
                 # Append the loss to running loss
                 running_loss = np.append(running_loss, loss.item())
     
@@ -250,11 +246,6 @@ def model_train(network, augment, load_model, save_model, loss_type):
         
             # Loop over validation patients
             for patient in range(13):
-                ######TEMPORARY##
-                if pat_list[patient+64] > 9:
-                    print("This patient currently doesn't exist, skipping")
-                    continue
-                #################
             
                 # Import data of selected patient 
                 structure, dose, startmod, endmod = data_import.input_data(pat_list[patient+64])

@@ -174,12 +174,12 @@ def input_data(N):
     """
     ### MODIFY START ###
     # MODIFY THIS PART FOR DIFFERENT FILE LOCATIONS #
-    with open(r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists\patient_IDs.txt') as f:                             #Location of list with patient IDs
+    with open(r'C:\Users\t.vd.hoeven\Dose_DL\Lists\patient_IDs.txt') as f:                             #Location of list with patient IDs
         patIDs = [line.rstrip()[1:-1] for line in f]
     patID = patIDs[N]
-    struc_list = r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists\Structures.txt'    #Location of list with structures
-    PTV_struct = r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Lists\PTV.txt'           #Location of list with PTV names
-    data_dir = r'C:\Users\thijs\Documents\master applied physics\mep\project_repository\Dose_DL\Data'                      #Location of DICOM data
+    struc_list = r'C:\Users\t.vd.hoeven\Dose_DL\Lists\Structures.txt'    #Location of list with structures
+    PTV_struct = r'C:\Users\t.vd.hoeven\Dose_DL\Lists\PTV.txt'           #Location of list with PTV names
+    data_dir = r'D:\dicomserver1417d\data'                      #Location of DICOM data
     # MODIFY STANDARDIZED ARRAY SIZE #
     input_size = [144, 64, 96]                                                                                          #Standardized size
     ### MODIFY STOP ###
