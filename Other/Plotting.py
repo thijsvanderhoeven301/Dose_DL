@@ -33,7 +33,7 @@ def dose_diff_plot(output, dose, structure, axis: int = 0):
 
 
 def DVH_plot(dose, struct_arr, structure, color, style):
-    struc_list = r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev/Lists/Structures.txt'
+    struc_list = r'C:/Users/t.vd.hoeven/Dose_DL/Lists/Structures.txt'
     with open(struc_list) as s:
         structs = [line.rstrip()[1:-1] for line in s]
     structs.append('PTVpros+vs')

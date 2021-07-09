@@ -10,7 +10,7 @@ def max_dose(dose, struct_arr, structure):
     :params structure: name of structure
     :return dmax: Maximum dose
     """
-    struc_list = r'C:/Users/thijs/Documents/master applied physics/mep/project_repository/Dose_DL/Lists/Structures.txt'
+    struc_list = r'C:/Users/t.vd.hoeven/Dose_DL/Lists/Structures.txt'
     with open(struc_list) as s:
         structs = [line.rstrip()[1:-1] for line in s]
     structs.append('PTVpros+vs')
@@ -29,7 +29,7 @@ def mean_dose(dose, struct_arr, structure):
     :params structure: name of structure
     :return dmean: Mean dose
     """
-    struc_list = r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev/Lists/Structures.txt'
+    struc_list = r'C:/Users/t.vd.hoeven/Dose_DL/Lists/Structures.txt'
     with open(struc_list) as s:
         structs = [line.rstrip()[1:-1] for line in s]
     structs.append('PTVpros+vs')
@@ -49,7 +49,7 @@ def Dx_calc(dose, struct_arr, x, structure):
     :params structure: name of structure
     :return Dx: Dx characteristic
     """
-    struc_list = r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev/Lists/Structures.txt'
+    struc_list = r'C:/Users/t.vd.hoeven/Dose_DL/Lists/Structures.txt'
     with open(struc_list) as s:
         structs = [line.rstrip()[1:-1] for line in s]
     structs.append('PTVpros+vs')
@@ -74,7 +74,7 @@ def Vx_calc(dose, struct_arr, x, structure):
     :params structure: name of structure
     :return Vx: Vx characteristic
     """
-    struc_list = r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev/Lists/Structures.txt'
+    struc_list = r'C:/Users/t.vd.hoeven/Dose_DL/Lists/Structures.txt'
     with open(struc_list) as s:
         structs = [line.rstrip()[1:-1] for line in s]
     structs.append('PTVpros+vs')
@@ -143,7 +143,7 @@ def DVH_calc(dose, struct_arr, ID):
     :params ID: name of structure
     :return df: DVH of structure
     """
-    struc_list = r'C:\Users\t.meerbothe\Desktop\project_Thierry_64_dev/Lists/Structures.txt'
+    struc_list = r'C:/Users/t.vd.hoeven/Dose_DL/Lists/Structures.txt'
     with open(struc_list) as s:
         structs = [line.rstrip()[1:-1] for line in s]
     structs.append('PTVpros+vs')

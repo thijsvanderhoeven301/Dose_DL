@@ -60,6 +60,7 @@ class UNet(nn.Module):
         self.GN5_2 = nn.GroupNorm(32, 256)
         self.GN5_3 = nn.GroupNorm(32, 256)
         self.GN5_4 = nn.GroupNorm(32, 256)
+        self.linear = nn.Linear(1,1,bias=True)
 
     def forward(self, x):
         x1 = self.GN1_2(F.relu(self.conv1_2(self.GN1_1(F.relu(self.input(x))))))
@@ -100,7 +101,7 @@ class UNet(nn.Module):
         x = torch.cat((x, x1), dim=1)
         del x1
         x = self.GN1_4(F.relu(self.conv1_3(self.GN1_3(F.relu(self.convup4(x))))))
-        x = F.relu(self.output(x))
+        x = torch.squeeze((self.linear(torch.unsqueeze(self.output(x),5))),5)
         return x
 
 

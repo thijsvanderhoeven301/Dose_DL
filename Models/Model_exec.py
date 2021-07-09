@@ -110,7 +110,7 @@ def weights_init(m):
     if isinstance(m, nn.ConvTranspose3d):
         torch.nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
-def model_train(augment, cuda, load_model, save_model, loss_type, N, N_pat, weights):
+def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, weights, patience, stopping_tol, limit):
 
     # Initialize loss values, and time variable
     training_loss = []
@@ -167,9 +167,13 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N, N_pat, weig
 
     #Start timer
     start = time.time()
+    
+    # Set epoch counter
+    epoch = 0
+    improve = True
 
     ## TRAINING ##
-    for epoch in range(N):
+    while improve:
         # Tell model to train
         model.train()
     
@@ -245,7 +249,7 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N, N_pat, weig
             running_loss = []
         
             # Loop over validation patients
-            for patient in range(13):
+            for patient in range(N_val):
             
                 # Import data of selected patient 
                 structure, dose, startmod, endmod = data_import.input_data(pat_list[patient+64])
@@ -290,9 +294,21 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N, N_pat, weig
             std_val = np.append(std_val, np.std(running_loss))
             print("The average validation loss is: ", '%.3f'%(ave_val_loss), "in epoch ", '%d'%(int(epoch+1)))
             validation_loss = np.append(validation_loss, ave_val_loss)
+            
+            if (epoch+1) > limit: #Maximum number of epochs
+                improve = False
+                print("Epoch Limit reached at ", '%d'%(int(epoch+1)))
+            if (epoch+1) > patience: #Minimum amount of epochs
+                if ((validation_loss[epoch] - validation_loss[epoch-1]) > stopping_tol) and ((validation_loss[epoch-1] - validation_loss[epoch-2]) > stopping_tol):
+                    improve = False #Stop if last two epochs didn't improve enough
+                    print("Early stopping has been activated at epoch ", '%d'%(int(epoch+1)))
+            
+            # Update epoch counter
+            epoch += 1
 
     # Compute total time
     time_tot += time.time() - start
+    epoch_tot = epoch + 1
     
     # Save model
     if save_model:
@@ -303,5 +319,9 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N, N_pat, weig
                     'loss': loss,
                     }, 'param.npy'
         )
+        np.save('training_loss.npy',training_loss)
+        np.save('validation_loss.npy',validation_loss)
+        np.save('std_val.npy', std_val)
+        np.save('std_train.npy', std_train)
     
-    return training_loss, std_train, validation_loss, std_val
+    return training_loss, std_train, validation_loss, std_val, epoch_tot, time_tot
