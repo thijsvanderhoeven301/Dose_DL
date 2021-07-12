@@ -25,8 +25,8 @@ import dose_char
 import Plotting
 
 #Choose to evualutate single patient and metrics
-single=False
-char = True
+single=True
+char = False
 
 ## Function to compute differences in evaluation metrics ##
 def ave_perc_err(values):
@@ -151,7 +151,7 @@ if single:
     # Plot a slice visualization of the prediction
     sw_dose = np.swapaxes(pr_dose,1,2)
     fig, ax = plt.subplots()
-    plot = ax.imshow(sw_dose[72, :, :])
+    plot = ax.imshow(sw_dose[:, :, 30])
     plt.axis('off')
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)

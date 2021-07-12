@@ -22,13 +22,14 @@ elif loss_type == 'heaviside':
 else:
     weights = 0
 save_model = True                      # Whether or not to save the model parameters after training
-load_model = False                      # Whether or not to load model parameters from a previous training
-augment = True                         # Whether or not to use augmentation during training
-N_patients = 1                          # Number of patients to use during training, max is 64 training patients
+load_model = True                      # Whether or not to load model parameters from a previous training
+augment = False                         # Whether or not to use augmentation during training
+N_patients = 64                          # Number of patients to use during training, max is 64 training patients
 N_val = 13                               # Number of patients to use during validation, max is 13 validation patients
-patience = 8
-stopping_tol = 0.001
-limit = 20
+patience = 10
+stopping_tol = -0.001
+limit = 80 #+1
+
 
 # Execute training scripts
-train, train_std, val, val_std, epoch, time = model_train(augment, cuda, load_model, save_model, loss_type, N_patients, N_val, weights, patience, stopping_tol, limit)
+train, train_std, val, val_std, epoch_tot, time, epoch_best = model_train(augment, cuda, load_model, save_model, loss_type, N_patients, N_val, weights, patience, stopping_tol, limit)
