@@ -12,7 +12,7 @@ from Model_exec import model_train
 
 # Setting the training parameters
 cuda = False                            # Whether to use CUDA or not
-loss_type = 'weighted'                 # Set type of loss function 'MSE', 'weighted', or 'heaviside'
+loss_type = 'MSE'                 # Set type of loss function 'MSE', 'weighted', or 'heaviside'
 if loss_type == 'weighted':
     weightsmse = [1, 4, 8]           # Weights used in case of weighted MSE loss function
     weights = weightsmse
@@ -27,9 +27,9 @@ augment = False                         # Whether or not to use augmentation dur
 N_patients = 64                          # Number of patients to use during training, max is 64 training patients
 N_val = 13                               # Number of patients to use during validation, max is 13 validation patients
 patience = 10
-stopping_tol = -0.001
+stopping_tol = -0.01
 limit = 80 #+1
-
+monitor = True
 
 # Execute training scripts
-train, train_std, val, val_std, epoch_tot, time, epoch_best = model_train(augment, cuda, load_model, save_model, loss_type, N_patients, N_val, weights, patience, stopping_tol, limit)
+train, train_std, val, val_std, epoch_tot, time, epoch_best = model_train(augment, cuda, load_model, save_model, loss_type, N_patients, N_val, weights, patience, stopping_tol, limit, monitor)

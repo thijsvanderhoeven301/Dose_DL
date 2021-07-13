@@ -17,6 +17,8 @@ import torch.optim as optim
 import torch
 import numpy as np
 import time
+from visdom import Visdom
+import os
 
 sys.path.insert(1, r'C:\Users\t.vd.hoeven\Dose_DL\Models')
 sys.path.insert(2, r'C:\Users\t.vd.hoeven\Dose_DL\Data_pros')
@@ -110,7 +112,7 @@ def weights_init(m):
     if isinstance(m, nn.ConvTranspose3d):
         torch.nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
-def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, weights, patience, stopping_tol, limit):
+def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, weights, patience, stopping_tol, limit, monitor):
 
     # Initialize loss values, and time variable
     training_loss = []
@@ -118,6 +120,11 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
     validation_loss = []
     std_val = []
     time_tot = 0.0
+    
+    # Initialize a visdom window
+    if monitor:
+        viz = Visdom()  
+        viz.line([0.], [0], win='Loss', opts=dict(title='Loss'))
 
     # Set device to cuda, if cuda is available, otherwise cpu
     if cuda:
@@ -127,10 +134,8 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
         device = 'cpu'
         print("Using cpu")
 
-    # Shuffle the patient list and delete outliers
-    pat_list = np.load(r'C:\Users\t.vd.hoeven\Dose_DL\Lists\shuf_patlist.npy')
-    pat_list = np.delete(pat_list, 28)
-    pat_list = np.delete(pat_list, 11)
+    # Path to processed data
+    path = r'C:\Users\t.vd.hoeven\processed_data'
 
     # Initialize the network
     model = UNet()
@@ -192,7 +197,12 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
                 print("Training patient ", '%d'%(int(patient+1)), "of ", '%d'%(int(N_pat)), "in epoch: ", '%d'%(int(epoch+1)))
         
             # Import data of current iteration patient
-            structure, dose, startmod, endmod = data_import.input_data(pat_list[patient])
+            filenamestr = r'structure' + '%d'%patient + r'.npy'
+            filenamedos = r'dose' + '%d'%patient + r'.npy'
+            load_path_struc = os.path.join(path,filenamestr)
+            load_path_dose = os.path.join(path,filenamedos)
+            structure = np.load(load_path_struc)
+            dose = np.load(load_path_dose)
      
             # Loop over desired augmentations
             for i in range(len(aug_list)):
@@ -235,6 +245,11 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
     
         # Compute average and std of training loss
         ave_train_loss = np.average(running_loss)
+        
+        # Update training loss in visdom
+        if monitor:
+            viz.line([ave_train_loss], [epoch+1], win='Loss', update='append', name ='training loss')
+        
         std_train = np.append(std_train, np.std(running_loss))
         print("The average training loss is: ", '%.3f'%(ave_train_loss), "in epoch ", '%d'%(int(epoch+1)))
         print("Time since start of training is: ", '%d'%(time.time()-start), "seconds")
@@ -256,8 +271,13 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
             # Loop over validation patients
             for patient in range(N_val):
             
-                # Import data of selected patient 
-                structure, dose, startmod, endmod = data_import.input_data(pat_list[patient+64])
+                # Import data of selected patient
+                filenamestr = r'structure' + '%d'%int(patient+64) + r'.npy'
+                filenamedos = r'dose' + '%d'%int(patient+64) + r'.npy'
+                load_path_struc = os.path.join(path,filenamestr)
+                load_path_dose = os.path.join(path,filenamedos)
+                structure = np.load(load_path_struc)
+                dose = np.load(load_path_dose)
 
                 # Loop over the desired augmentation (often none)
                 for i in range(len(trans_val_list)):
@@ -294,8 +314,13 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
                     # Add current loss to running loss list
                     running_loss = np.append(running_loss, loss.item())
         
-            # Compute average & std of running loss
+            # Compute average & std of validation loss
             ave_val_loss = np.average(running_loss)
+            
+            #update the visdom graph
+            if monitor:
+                viz.line([ave_val_loss], [epoch+1], win='Loss', update='append', name ='val')
+            
             std_val = np.append(std_val, np.std(running_loss))
             print("The average validation loss is: ", '%.3f'%(ave_val_loss), "in epoch ", '%d'%(int(epoch+1)))
             validation_loss = np.append(validation_loss, ave_val_loss)
@@ -315,6 +340,10 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
                             'loss': loss,
                             }, 'param.npy'
                 )
+                np.save('training_loss.npy',training_loss)
+                np.save('validation_loss.npy',validation_loss)
+                np.save('std_val.npy', std_val)
+                np.save('std_train.npy', std_train)
             
             # Set a maximum number of epochs with limit
             if (epoch+1) > limit:
@@ -329,6 +358,10 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
                                 'loss': loss,
                                 }, 'param.npy'
                     )
+                    np.save('training_loss.npy',training_loss)
+                    np.save('validation_loss.npy',validation_loss)
+                    np.save('std_val.npy', std_val)
+                    np.save('std_train.npy', std_train)
                     epoch_best = epoch
                 print("Epoch Limit reached at epoch ", '%d'%(int(epoch+1)))
             
