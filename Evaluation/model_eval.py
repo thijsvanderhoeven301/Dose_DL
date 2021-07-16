@@ -26,7 +26,7 @@ import Plotting
 
 #Choose to evualutate single patient and metrics
 single=True
-char = False
+char = True
 
 ## Function to compute differences in evaluation metrics ##
 def ave_perc_err(values):
@@ -275,15 +275,48 @@ if char:
     ax.boxplot(box, labels=['PTV_D98', 'PTV_D95', 'PTV_Dmax', 'PTV_Dmean', 'Rect_Dmax', 'Rect_Dmean', 'Rect_V45'])
     plt.xticks(rotation=30, ha='right')
     plt.ylabel(r'$100 \cdot (\frac{D_{True} - D_{Pred}}{D_{True}}) $')
+    plt.grid('on')
     ax.set_ylim(-20, 20)
     
     # Absolute DVH error
+    struct = 'PTVpros+vs'
+    out_PTV_tr = DVH_calc_nodf(dose, struct, structure)
+    out_PTV_pr = DVH_calc_nodf(pr_dose, struct, structure)
+    vals = np.zeros([len(out_PTV_tr),2])
+    vals[:, 0] = out_PTV_tr
+    vals[:, 1] = out_PTV_pr
+    abs_error_PTV = ave_abs_err(vals)
+    
     struct = 'RECTUM'
     out_PTV_tr = DVH_calc_nodf(dose, struct, structure)
     out_PTV_pr = DVH_calc_nodf(pr_dose, struct, structure)
     vals = np.zeros([len(out_PTV_tr),2])
     vals[:, 0] = out_PTV_tr
     vals[:, 1] = out_PTV_pr
-    test_out = ave_abs_err(vals)
+    abs_error_rec = ave_abs_err(vals)
+    
+    struct = 'ANAL_SPH'
+    out_PTV_tr = DVH_calc_nodf(dose, struct, structure)
+    out_PTV_pr = DVH_calc_nodf(pr_dose, struct, structure)
+    vals = np.zeros([len(out_PTV_tr),2])
+    vals[:, 0] = out_PTV_tr
+    vals[:, 1] = out_PTV_pr
+    abs_error_anal = ave_abs_err(vals)
+    
+    struct = 'PTVpros+vs'
+    out_PTV_tr = DVH_calc_nodf(dose, struct, structure)
+    out_PTV_pr = DVH_calc_nodf(pr_dose, struct, structure)
+    vals = np.zeros([len(out_PTV_tr),2])
+    vals[:, 0] = out_PTV_tr
+    vals[:, 1] = out_PTV_pr
+    abs_error_PTV = ave_abs_err(vals)
+    
+    struct = 'EXT'
+    out_PTV_tr = DVH_calc_nodf(dose, struct, structure)
+    out_PTV_pr = DVH_calc_nodf(pr_dose, struct, structure)
+    vals = np.zeros([len(out_PTV_tr),2])
+    vals[:, 0] = out_PTV_tr
+    vals[:, 1] = out_PTV_pr
+    abs_error_ext = ave_abs_err(vals)
             
 

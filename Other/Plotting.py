@@ -13,6 +13,8 @@ def loss_plot(training_loss, validation_loss, std_train, std_val):
     plt.legend(['Training_loss', 'Validation_loss'])
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    plt.grid('on')
+    plt.ylim([0,4])
     plt.show()
 
 
@@ -46,6 +48,7 @@ def DVH_plot(dose, struct_arr, structure, color, style):
     PTV_sort = np.sort(PTV_vox)
     vol = 1 - (np.linspace(0, Nvox-1, Nvox)/Nvox)
     plt.plot(PTV_sort, vol, color, linestyle=style)
+    plt.grid('on')
     plt.xlabel('dose [Gy]')
     plt.ylabel('Volume')
 
@@ -59,6 +62,7 @@ def DICE_plot(DICE, Dice_step):
     #ax.set_ylim(0, 1)
     plt.xlabel('isodose [%]')
     plt.ylabel('DICE []')
+    plt.grid('on')
     #plt.title('DICE coefficient for isodose volumes')
     plt.show()
 

@@ -61,46 +61,53 @@ class UNet(nn.Module):
         self.GN5_3 = nn.GroupNorm(32, 256)
         self.GN5_4 = nn.GroupNorm(32, 256)
         self.linear = nn.Linear(1,1,bias=True)
+        
+        #Dropout for regularization
+        self.dropout1 = nn.Dropout(0.125)
+        self.dropout2 = nn.Dropout(0.148)
+        self.dropout3 = nn.Dropout(0.176)
+        self.dropout4 = nn.Dropout(0.210)
+        self.dropout5 = nn.Dropout(0.250)
 
     def forward(self, x):
-        x1 = self.GN1_2(F.relu(self.conv1_2(self.GN1_1(F.relu(self.input(x))))))
+        x1 = self.dropout1(self.GN1_2(F.relu(self.conv1_2(self.dropout1(self.GN1_1(F.relu(self.input(x))))))))
         x = self.pool(x1)
 
-        x2 = self.GN2_2(F.relu(self.conv2_2(self.GN2_1(F.relu(self.conv2_1(x))))))
+        x2 = self.dropout2(self.GN2_2(F.relu(self.conv2_2(self.dropout2(self.GN2_1(F.relu(self.conv2_1(x))))))))
         x = self.pool(x2)
 
-        x3 = self.GN3_2(F.relu(self.conv3_2(self.GN3_1(F.relu(self.conv3_1(x))))))
+        x3 = self.dropout3(self.GN3_2(F.relu(self.conv3_2(self.dropout3(self.GN3_1(F.relu(self.conv3_1(x))))))))
         x = self.pool(x3)
 
-        x4 = self.GN4_2(F.relu(self.conv4_2(self.GN4_1(F.relu(self.conv4_1(x))))))
+        x4 = self.dropout4(self.GN4_2(F.relu(self.conv4_2(self.dropout4(self.GN4_1(F.relu(self.conv4_1(x))))))))
         x = self.pool(x4)
 
-        x = self.GN5_2(F.relu(self.conv5_2(self.GN5_1(F.relu(self.conv5_1(x))))))
-        x = self.GN5_4(F.relu(self.conv5_4(self.GN5_3(F.relu(self.conv5_3(x))))))
+        x = self.dropout5(self.GN5_2(F.relu(self.conv5_2(self.dropout5(self.GN5_1(F.relu(self.conv5_1(x))))))))
+        x = self.dropout5(self.GN5_4(F.relu(self.conv5_4(self.dropout5(self.GN5_3(F.relu(self.conv5_3(x))))))))
 
         x = self.GN4_up(F.relu(self.uptrans1(x))) # When upsampling with only transpose convolution
         
         x = torch.cat((x, x4), dim=1)
         del x4
-        x = self.GN4_4(F.relu(self.conv4_3(self.GN4_3(F.relu(self.convup1(x))))))
+        x = self.dropout4(self.GN4_4(F.relu(self.conv4_3(self.dropout4(self.GN4_3(F.relu(self.convup1(x))))))))
 
         x = self.GN3_up(F.relu(self.uptrans2(x))) # When upsampling with only transpose convolution
         
         x = torch.cat((x, x3), dim=1)
         del x3
-        x = self.GN3_4(F.relu(self.conv3_3(self.GN3_3(F.relu(self.convup2(x))))))
+        x = self.dropout3(self.GN3_4(F.relu(self.conv3_3(self.dropout3(self.GN3_3(F.relu(self.convup2(x))))))))
 
         x = self.GN2_up(F.relu(self.uptrans3(x))) # When upsampling with only transpose convolution
         
         x = torch.cat((x, x2), dim=1)
         del x2
-        x = self.GN2_4(F.relu(self.conv2_3(self.GN2_3(F.relu(self.convup3(x))))))
+        x = self.dropout2(self.GN2_4(F.relu(self.conv2_3(self.dropout2(self.GN2_3(F.relu(self.convup3(x))))))))
 
         x = self.GN1_up(F.relu(self.uptrans4(x))) # When upsampling with only transpose convolution
         
         x = torch.cat((x, x1), dim=1)
         del x1
-        x = self.GN1_4(F.relu(self.conv1_3(self.GN1_3(F.relu(self.convup4(x))))))
+        x = self.dropout1(self.GN1_4(F.relu(self.conv1_3(self.dropout1(self.GN1_3(F.relu(self.convup4(x))))))))
         x = torch.squeeze((self.linear(torch.unsqueeze(self.output(x),5))),5)
         return x
 

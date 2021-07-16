@@ -51,7 +51,7 @@ def mse_weight(output, truth, structures, weight_input, device):
 
     weights = np.ones(output.squeeze().size())#*0.1
     EXT = structures[3, :, :, :]
-    OAR = np.sum(structures[0:3, :, :, :], axis=0) > 0
+    OAR = np.sum(structures[0:3, :, :, :], axis=1) > 0
     PTV = structures[-1, :, :, :]
     weights[EXT] = weight_input[0]
     weights[OAR] = weight_input[1]
@@ -194,11 +194,11 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
         for patient in range(N_pat):
             
             if patient % 10 == 0:
-                print("Training patient ", '%d'%(int(patient+1)), "of ", '%d'%(int(N_pat)), "in epoch: ", '%d'%(int(epoch+1)))
+                print("Training patient", '%d'%(int(patient+1)), "of ", '%d'%(N_pat), "in epoch: ", '%d'%(int(epoch+1)))
         
             # Import data of current iteration patient
-            filenamestr = r'structure' + '%d'%patient + r'.npy'
-            filenamedos = r'dose' + '%d'%patient + r'.npy'
+            filenamestr = r'structure' + '%d'%(patient) + r'.npy'
+            filenamedos = r'dose' + '%d'%(patient) + r'.npy'
             load_path_struc = os.path.join(path,filenamestr)
             load_path_dose = os.path.join(path,filenamedos)
             structure = np.load(load_path_struc)
@@ -272,8 +272,8 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
             for patient in range(N_val):
             
                 # Import data of selected patient
-                filenamestr = r'structure' + '%d'%int(patient+64) + r'.npy'
-                filenamedos = r'dose' + '%d'%int(patient+64) + r'.npy'
+                filenamestr = r'structure' + '%d'%(patient+64) + r'.npy'
+                filenamedos = r'dose' + '%d'%(patient+64) + r'.npy'
                 load_path_struc = os.path.join(path,filenamestr)
                 load_path_dose = os.path.join(path,filenamedos)
                 structure = np.load(load_path_struc)
@@ -293,7 +293,7 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
                 
                     # Feedforward the structure tensor through network
                     output = model(str_gpu_tens)
-                    del str_gpu_tens
+                    del str_gpu_tens               
                 
                     # Generate (augmented) true dose in tensor form
                     dos_gpu_tens = aug.dose_transform(dose, tr_val).to(device)
