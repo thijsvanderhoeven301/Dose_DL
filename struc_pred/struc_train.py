@@ -439,7 +439,7 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
     
     return training_loss, std_train, validation_loss, std_val, epoch_tot, time_tot, epoch_best
     
-def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, weights, patience, stopping_tol, limit, monitor):
+def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, weights, patience, stopping_tol, limit, monitor, batch_size):
 
     # Initialize loss values, and time variable
     training_loss = []
@@ -530,9 +530,9 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
                 structure_batch = []
                 dose_batch = []
                 
-                for i in range(8):
-                    filenamestr = r'structure' + '%d'%(int(8*batch + i)) + r'.npy'
-                    filenamedos = r'dose' + '%d'%(int(8*batch + i)) + r'.npy'
+                for i in range(batch_size):
+                    filenamestr = r'structure' + '%d'%(int(batch_size*batch + i)) + r'.npy'
+                    filenamedos = r'dose' + '%d'%(int(batch_size*batch + i)) + r'.npy'
                     load_path_struc = os.path.join(path,filenamestr)
                     load_path_dose = os.path.join(path,filenamedos)
                     structure = np.load(load_path_struc)
@@ -558,19 +558,19 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
                     # Select augmentation
                     tr_val = aug_list[i]
                     str_gpu_tens_batch = []
-                    for j in range(8):
+                    for j in range(batch_size):
                         str_gpu_tens = aug.structure_transform(structure_batch[j].copy(), tr_val).to(device)
                         str_gpu_tens_batch.append(str_gpu_tens)
                         del str_gpu_tens
                     str_gpu_tens_batch = torch.cat(str_gpu_tens_batch, dim = 0)
                 else:
                     str_gpu_tens_batch = []
-                    for j in range(8):
+                    for j in range(batch_size):
                         if i == 10 and j == 7:
-                        #Dummy
-                            tr_val = aug_list[int(i*8 + j-1)]
+                        #Dummies
+                            tr_val = aug_list[int(i*batch_size + j-1)]
                         else:
-                            tr_val = aug_list[int(i*8 + j)]
+                            tr_val = aug_list[int(i*batch_size + j)]
                         str_gpu_tens = aug.structure_transform(structure.copy(), tr_val).to(device)
                         str_gpu_tens_batch.append(str_gpu_tens)
                         del str_gpu_tens                   
@@ -585,18 +585,18 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
                 # Generate (augmented) true dose in tensor form
                 if not augment:
                     dos_gpu_tens_batch = []
-                    for j in range(8):
+                    for j in range(batch_size):
                         dos_gpu_tens = aug.dose_transform(dose_batch[j], tr_val).to(device)
                         dos_gpu_tens_batch.append(dos_gpu_tens)
                         del dos_gpu_tens
                     dos_gpu_tens_batch = torch.cat(dos_gpu_tens_batch, dim=0)
                 else:
                     dos_gpu_tens_batch = []
-                    for j in range(8):
+                    for j in range(batch_size):
                         if i == 10 and j == 7:
-                            tr_val = aug_list[int(i*8 + j - 1)]
+                            tr_val = aug_list[int(i*batch_size + j-1)]
                         else:
-                            tr_val = aug_list[int(i*8 + j)]
+                            tr_val = aug_list[int(i*batch_size + j)]
                         dos_gpu_tens = aug.dose_transform(dose, tr_val).to(device)
                         dos_gpu_tens_batch.append(dos_gpu_tens)
                         del dos_gpu_tens
@@ -606,7 +606,7 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
                 if (not augment):
                     loss = mse_weight_batch(output, dos_gpu_tens_batch, np.array(str_gpu_tens_batch_cpu.numpy(),dtype=bool), weights, device, 1)
                 else:
-                    if i<10:
+                    if i < 10:
                         loss = mse_weight_batch(output, dos_gpu_tens_batch, np.array(str_gpu_tens_batch_cpu.numpy(),dtype=bool), weights, device, 1)
                     else:
                         loss = mse_weight_batch(output, dos_gpu_tens_batch, np.array(str_gpu_tens_batch_cpu.numpy(),dtype=bool), weights, device, 2)
@@ -656,10 +656,10 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
                 structure_batch = []
                 dose_batch = []
                 
-                for j in range(8):
-                    if (64 + 8*batch + j) < 77:
-                        filenamestr = r'structure' + '%d'%(int(64 + 8*batch + j)) + r'.npy'
-                        filenamedos = r'dose' + '%d'%(int(64 + 8*batch + j)) + r'.npy'
+                for j in range(batch_size):
+                    if (64 + batch_size*batch + j) < 77:
+                        filenamestr = r'structure' + '%d'%(int(64 + batch_size*batch + j)) + r'.npy'
+                        filenamedos = r'dose' + '%d'%(int(64 + batch_size*batch + j)) + r'.npy'
                     else:
                         #fill with dummy data
                         filenamestr = r'structure' + '%d'%(64) + r'.npy'
@@ -682,7 +682,7 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
                 
                     # Generate (augmented) structure in tensor form
                     str_gpu_tens_batch = []
-                    for j in range(8):
+                    for j in range(batch_size):
                         str_gpu_tens = aug.structure_transform(structure_batch[j].copy(), tr_val).to(device)
                         str_gpu_tens_batch.append(str_gpu_tens)
                         del str_gpu_tens
@@ -695,14 +695,14 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
 
                     # Generate (augmented) true dose in tensor form
                     dos_gpu_tens_batch =[]
-                    for j in range(8):
+                    for j in range(batch_size):
                         dos_gpu_tens = aug.dose_transform(dose_batch[j], tr_val).to(device)
                         dos_gpu_tens_batch.append(dos_gpu_tens)
                         del dos_gpu_tens
                     dos_gpu_tens_batch = torch.cat(dos_gpu_tens_batch, dim=0)
                 
                     # Compute loss (list of 8 losses)
-                    if batch == 2:
+                    if batch == 1:
                         loss = mse_weight_batch(output, dos_gpu_tens_batch, np.array(str_gpu_tens_batch_cpu.numpy(),dtype=bool), weights, device, 3)
                     else:
                         loss = mse_weight_batch(output, dos_gpu_tens_batch, np.array(str_gpu_tens_batch_cpu.numpy(),dtype=bool), weights, device, 1)

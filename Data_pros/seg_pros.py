@@ -216,33 +216,57 @@ def real_seg_cont(patient):
 
     dicom_paths = data_import.get_dicom_paths(data_dir, patID)
     plan_dicom = dicom.read_file(dicom_paths['RTPLAN'])
-    dose_dicom = dicom.read_file(dicom_paths['RTDOSE'])
+    # dose_dicom = dicom.read_file(dicom_paths['RTDOSE'])
 
-    structure, dose, startmod, endmod = data_import.input_data(patient)
+    # structure, dose, startmod, endmod = data_import.input_data(patient)
 
-    isocenter = plan_dicom.BeamSequence[0].ControlPointSequence[0].IsocenterPosition
-    pos = dose_dicom.ImagePositionPatient
-    spacing = dose_dicom.PixelSpacing
+    # isocenter = plan_dicom.BeamSequence[0].ControlPointSequence[0].IsocenterPosition
+    # pos = dose_dicom.ImagePositionPatient
+    # spacing = dose_dicom.PixelSpacing
 
-    loc_array = coordgrid3D(isocenter, spacing, dose.shape, pos, startmod)
-
-    mod_structure, loc_crop = isocrop(structure, loc_array.copy())
-    real = np.zeros([142, 64, 64])
+    # loc_array = coordgrid3D(isocenter, spacing, dose.shape, pos, startmod)
+    # mod_structure, loc_crop = isocrop(structure, loc_array.copy())
+    
+    # Length of the pixel grid
+    pix_length = np.linspace(0,127,128) +0.5
+    
+    # Initialize the boolean maps on the pixel grid shape
+    pix_grid =np.zeros((192,128,128))
+    
+    # loop over the control points
     for beam in range(2):
         for cp in range(71):
+            # Collect coordinates of mlc edges
             out = Beampath(plan_dicom.BeamSequence[beam], cp)
-            MLCpath = Path(out[0])
             
+            # Set center of segments at 64,64
+            modout = out[0]+64
+            
+            # Convert to a plt path
+            MLCpath = Path(modout)
+            
+            # Collect the weight of the segment
             if cp == 0:
                 weight = plan_dicom.BeamSequence[beam].ControlPointSequence[cp].CumulativeMetersetWeight
             else:
                 weight = plan_dicom.BeamSequence[beam].ControlPointSequence[cp].CumulativeMetersetWeight - plan_dicom.BeamSequence[beam].ControlPointSequence[cp-1].CumulativeMetersetWeight
             
-            for i in range(64):
-                for j in range(64):
-                    if MLCpath.contains_point([loc_crop[i, 0, j, 0], loc_crop[i, 0, j, 2]]):
-                        real[cp + beam*71, i, j] = weight
-    return real
+            # create boolean map of aperture on 128,128 grid
+            for i in range(128):
+                for j in range(128):
+                    if MLCpath.contains_point([pix_length[i],pix_length[j]]):
+                        pix_grid[25 + cp + beam*71, i, j] = weight          
+            
+            # if cp == 0:
+            #     weight = plan_dicom.BeamSequence[beam].ControlPointSequence[cp].CumulativeMetersetWeight
+            # else:
+            #     weight = plan_dicom.BeamSequence[beam].ControlPointSequence[cp].CumulativeMetersetWeight - plan_dicom.BeamSequence[beam].ControlPointSequence[cp-1].CumulativeMetersetWeight
+            
+            # for i in range(64):
+            #     for j in range(64):
+            #         if MLCpath.contains_point([loc_crop[i, 0, j, 0], loc_crop[i, 0, j, 2]]):
+            #             real[25 + cp + beam*71, i, j] = 1
+    return pix_grid
 
 def trans_maps(patient):
     """Script to calculate the projected structure maps
@@ -260,7 +284,7 @@ def trans_maps(patient):
     dose_dicom = dicom.read_file(dicom_paths['RTDOSE'])
 
     structure, dose, startmod, endmod = data_import.input_data(patient)
-    mod_inp = np.zeros([4, 142, 64, 64])
+    mod_inp = np.zeros([4, 192, 256, 256])
 
     isocenter = plan_dicom.BeamSequence[0].ControlPointSequence[0].IsocenterPosition
     pos = dose_dicom.ImagePositionPatient
@@ -269,6 +293,36 @@ def trans_maps(patient):
     loc_array = coordgrid3D(isocenter, spacing, dose.shape, pos, startmod)
 
     mod_structure, loc_crop = isocrop(structure, loc_array.copy())
+    
+    
+    ## Transport to pixel grid ##
+    
+    # initialize pixel grid
+    struc_pixgrid = np.zeros((5,256,256,256))
+    
+    # Loop over all voxels for all structures
+    for i in range(mod_structure.shape[1]):
+        for j in range(mod_structure.shape[2]):
+            for k in range(mod_structure.shape[3]):
+                # Check if voxel is inside cropped area
+                if abs(loc_crop[i,j,k,0]) < 128 and abs(loc_crop[i,j,k,1]) < 128 and abs(loc_crop[i,j,k,2]) < 128:
+                    # give the pixels located around the voxel centre the structure value
+                    # check if there are structure values
+                    if mod_structure[0,i,j,k] or mod_structure[1,i,j,k] or mod_structure[2,i,j,k] or mod_structure[3,i,j,k] or mod_structure[4, i, j, k]:
+                        #Loop over all surrounding pixels
+                        for l in range(4):
+                             for m in range(4):
+                                 for n in range(4):
+                                     x = round(loc_crop[i,j,k,0])+ 126 + l
+                                     y = round(loc_crop[i,j,k,1]) + 126 + m
+                                     z = round(loc_crop[i,j,k,2]) + 126 + n
+                                     # check if selected pixel is inside the figure
+                                     if x > -1 and x < 256 and y > -1 and y < 256 and z > -1 and z < 256:
+                                         # give selected pixel the structure value
+                                         struc_pixgrid[:,x, y, z] = mod_structure[:, i, j, k]
+    struc_pixgrid = np.flip(struc_pixgrid, axis=2)                
+                    #struc_pixgrid[:,(round(loc_crop[i,j,k,0])+64-2):(round(loc_crop[i,j,k,0])+64+2),(round(loc_crop[i,j,k,1])+64-2):(round(loc_crop[i,j,k,1])+64+2),(round(loc_crop[i,j,k,2])+64-2):(round(loc_crop[i,j,k,2])+64+2)] = mod_structure[:,i,j,k]
+    ###
     
     ###Define gantry angles
     angles = np.zeros((len(plan_dicom.BeamSequence[0].ControlPointSequence),len(plan_dicom.BeamSequence)))
@@ -285,13 +339,21 @@ def trans_maps(patient):
 
     for i in range(angles.shape[0]):
         for j in range(angles.shape[1]):
-            mod = np.zeros([4, mod_structure.shape[1], mod_structure.shape[2], mod_structure.shape[3]])
+            mod = np.zeros([4, struc_pixgrid.shape[1], struc_pixgrid.shape[2], struc_pixgrid.shape[3]])
             for k in range(4):
-                mod[k-1, :, :, :] = aug.small_rotation(mod_structure[k-1, :, :, :].copy(), -angles[i, j], boolmap=True, axis=1)
+                mod[k-1, :, :, :] = aug.small_rotation(struc_pixgrid[k-1, :, :, :].copy(), -angles[i, j], boolmap=True, axis=1)
             mod = np.sum(mod, axis=3)
-            mod = aug.small_rotation(mod.copy(), -20, boolmap=False, axis=0)
-            mod_inp[:, i + j*71, :, :] = mod
-    return mod_inp
+            #mod[mod > 0] = 1 #if you want boolmaps
+            mod = aug.small_rotation(mod.copy(), -20, boolmap=False, axis=0) # set to true if boolmaps
+            mod_inp[:,25 + i + j*71, :, :] = mod
+    
+    # crop to 128 by 128
+    final_out = np.zeros((4,192,128,128))
+    for i in range(final_out.shape[2]):
+        for j in range(final_out.shape[3]):
+            final_out[:, :, i,j] = mod_inp[:,:,i + 64, j +64]
+    
+    return final_out
 
 def import_seg(N_pat):
     """
@@ -314,4 +376,3 @@ def import_seg(N_pat):
     bevs = trans_maps(patient)
 
     return mlc, bevs
-

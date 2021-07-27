@@ -6,23 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from visdom import Visdom
 
-from seg_net import Seg_Net, pixnet
-
-def mlc_loss(output,  truth):
-    
-    MSE_loss_shape = torch.mean((output - truth)**2)
-    
-    loss = MSE_loss_shape
-
-    return loss
-    
-def slice_dice(output, truth):
-    slice_int = torch.sum(torch.sum(output*truth, dim=-1), dim=-1)
-    slice_truth = torch.sum(torch.sum(truth*truth, dim=-1), dim=-1)
-    slice_pred = torch.sum(torch.sum(output*output, dim=-1), dim=-1)
-    dice = 2*slice_int/(slice_truth + slice_pred)
-    diceloss = 1-dice
-    return torch.mean(diceloss)
+from seg_net_2D import pixnet
 
 def weights_init(m):
     """
@@ -31,11 +15,11 @@ def weights_init(m):
     :params m: model weights
     """
 
-    if isinstance(m, nn.Conv3d):
+    if isinstance(m, nn.Conv2d):
         torch.nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('leaky_relu', 0.2))
-    if isinstance(m, nn.ConvTranspose3d):
+    if isinstance(m, nn.ConvTranspose2d):
         torch.nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('leaky_relu', 0.2))
-    if isinstance(m, nn.BatchNorm3d):
+    if isinstance(m, nn.BatchNorm2d):
         m.reset_parameters()
 
 def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol, limit, monitor):
@@ -61,8 +45,8 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
         print("Using cpu")
 
     # Path to processed data
-    path = r'/home/rt/project_thijs/processed_data_seg_double_bin/'
-
+    path = r'/home/rt/project_thijs/processed_data_seg_bin/'
+    
     # Initialize the network
     model = pixnet()
     optimizer = optim.Adam(model.parameters(), lr=1e-03)
@@ -83,13 +67,14 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
         model = model.cuda()
     else:
         model = model.to(device)
-
+    
     #Start timer
     start = time.time()
     
     # Set epoch counter
     epoch = 0
     
+    # Set a loss function
     bce_loss = nn.BCELoss()
     
     # Early stopping parameters
@@ -97,15 +82,15 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
     patience_count = 0
     patience_act = False
     epoch_best = 0
-
-    ## TRAINING ##
+    
+    ## TRAINING ## 
     while improve:
-        # Tell model to train
+        #Tell model to train
         model.train()
-    
-        #Initiate loss for single augmentations
+        
+        #Initiate loss
         running_loss = []
-    
+        
         # Loop over training patients
         for patient in range(N_pat):
             
@@ -120,37 +105,43 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
             bev = np.load(load_path_bev)
             mlc = np.load(load_path_mlc)
             
-            # Reset optimizer gradient
-            optimizer.zero_grad()
-            
-            # Transform bev input to tensor form (and add dimension for the single batch)
-            bev_inp = torch.Tensor(np.expand_dims(bev, axis=0)).to(device)
+            for cp in range(bev.shape[1]):
                 
-            # Feed the bev forward through model
-            output = model(bev_inp)
-            del bev_inp
-
-            # Transform mlc ground truth to tensor for (and add dimensions for the channel and batch)
-            mlc_truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc, axis = 0), axis = 0)).to(device)
-            
-            # Compute loss (simple MSE loss is used now)
-            #loss = mlc_loss(output, mlc_truth)
-            loss = bce_loss(output, mlc_truth)
+                #Select specific control point
+                bev_slice = bev[:,cp,:,:]
+                mlc_slice = mlc[cp,:,:]
                 
-            # Transfer output to cpu
-            output_cpu = output.cpu()
-            
-            # Free gpu memory
-            del output
-            del mlc_truth
-            
-            # Perform optimization
-            loss.backward()
-            optimizer.step()
+                # Reset optimizer gradient
+                optimizer.zero_grad()
                 
-            # Append the loss to running loss
-            running_loss = np.append(running_loss, loss.item())
-    
+                # Transform 4,64,64 to 1,4,64,64 and tensor
+                model_input = torch.Tensor(np.expand_dims(bev_slice, axis=0)).to(device)
+                
+                # Feedforward through network
+                model_output = model(model_input)
+                del model_input
+                
+                # Transform 64,64 to 1,1,64,64
+                truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc_slice, axis=0),axis=0)).to(device)
+                
+                # Compute loss
+                loss = bce_loss(model_output, truth)
+                
+                # Transfer output to cpu
+                output_cpu = model_output.cpu()
+                
+                # Free gpu memory
+                del model_output
+                del truth
+                
+                # Perform optimization
+                loss.backward()
+                optimizer.step()
+                
+                
+                # Append the loss to running loss
+                running_loss = np.append(running_loss, loss.item())
+                
         # Compute average and std of training loss
         ave_train_loss = np.average(running_loss)
         
@@ -187,32 +178,37 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
                 bev = np.load(load_path_bev)
                 mlc = np.load(load_path_mlc)
                 
-                # Reset optimizer gradient
-                optimizer.zero_grad()
-                
-                # Transform bev input to tensor form
-                bev_inp = torch.Tensor(np.expand_dims(bev, axis=0)).to(device)
+                for cp in range(bev.shape[1]):
                     
-                # Feed the bev forward through model
-                output = model(bev_inp)
-                del bev_inp
-    
-                # Transform ground truth to tensor form and add channel and batch dimension
-                mlc_truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc, axis = 0), axis = 0)).to(device)
-                
-                ## Compute loss
-                #loss = mlc_loss(output, mlc_truth)
-                loss = bce_loss(output, mlc_truth)
+                    #Select specific control point
+                    bev_slice = bev[:,cp,:,:]
+                    mlc_slice = mlc[cp,:,:]
                     
-                # Transfer output to cpu
-                output_cpu = output.cpu()
+                    # Reset optimizer gradient
+                    optimizer.zero_grad()         
+                    
+                    # Transform 4,64,64 to 1,4,64,64 and tensor
+                    model_input = torch.Tensor(np.expand_dims(bev_slice, axis=0)).to(device)
                 
-                # Free gpu memory
-                del output
-                del mlc_truth
+                    # Feedforward through network
+                    model_output = model(model_input)
+                    del model_input
                 
-                # Add current loss to running loss list
-                running_loss = np.append(running_loss, loss.item())
+                    # Transform 64,64 to 1,1,64,64
+                    truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc_slice, axis=0),axis=0)).to(device)
+                
+                    # Compute loss
+                    loss = bce_loss(model_output, truth)
+                
+                    # Transfer output to cpu
+                    output_cpu = model_output.cpu()
+                
+                    # Free gpu memory
+                    del model_output
+                    del truth
+                
+                    # Add current loss to running loss list
+                    running_loss = np.append(running_loss, loss.item())
         
             # Compute average & std of validation loss
             ave_val_loss = np.average(running_loss)
@@ -301,3 +297,8 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
         np.save('std_train.npy', std_train)
     
     return training_loss, std_train, validation_loss, std_val, epoch_tot, time_tot, epoch_best
+                
+                
+
+                
+        
