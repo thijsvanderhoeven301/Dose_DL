@@ -8,11 +8,22 @@ from visdom import Visdom
 
 from seg_net import Seg_Net, pixnet
 
-def mlc_loss(output,  truth):
+def weighted_bce_loss(preds, truths,true_weights, pr_weight):
     
-    MSE_loss_shape = torch.mean((output - truth)**2)
+    #gt_weight = torch.amax(truths, dim=(3,4)).unsqueeze(dim=-1).unsqueeze(dim=-1)
+    # Convert the prediction and truths back to bineary maps for the bce loss function using the true and predicted weigths
+    truths_bin = truths/(true_weights + (true_weights == 0).float())
+    preds_bin = preds/(pr_weight + (pr_weight == 0).float())
     
-    loss = MSE_loss_shape
+    #Initialize bce loss function
+    bceloss = nn.BCELoss()
+    
+    #Combine the bce loss of the aperture and the mse loss of the weight prediction
+    loss = bceloss(preds_bin, truths_bin) + torch.mean((true_weights-pr_weight)**2)
+    #print("BCE loss is: ")
+    #print(bceloss(preds_bin, truths_bin))
+    #print("MSE loss is: ")
+    #print(torch.mean((true_weights-pr_weight)**2))
 
     return loss
     
@@ -61,7 +72,7 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
         print("Using cpu")
 
     # Path to processed data
-    path = r'/home/rt/project_thijs/processed_data_seg_double_bin/'
+    path = r'/home/rt/project_thijs/processed_data_seg/'
 
     # Initialize the network
     model = pixnet()
@@ -90,13 +101,15 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
     # Set epoch counter
     epoch = 0
     
-    bce_loss = nn.BCELoss()
+    bceloss = nn.BCELoss()
     
     # Early stopping parameters
     improve = True
     patience_count = 0
     patience_act = False
     epoch_best = 0
+    
+    mseloss = nn.MSELoss()
 
     ## TRAINING ##
     while improve:
@@ -120,6 +133,8 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
             bev = np.load(load_path_bev)
             mlc = np.load(load_path_mlc)
             
+            #true_weights = torch.from_numpy(np.expand_dims(np.expand_dims(np.amax(mlc, axis = (1,2)), -1),-1)).float().cuda()
+            
             # Reset optimizer gradient
             optimizer.zero_grad()
             
@@ -134,8 +149,8 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
             mlc_truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc, axis = 0), axis = 0)).to(device)
             
             # Compute loss (simple MSE loss is used now)
-            #loss = mlc_loss(output, mlc_truth)
-            loss = bce_loss(output, mlc_truth)
+            loss = bceloss(output, mlc_truth)
+            #loss = weighted_bce_loss(output, mlc_truth, true_weights, model.fin_weight.detach())
                 
             # Transfer output to cpu
             output_cpu = output.cpu()
@@ -187,6 +202,8 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
                 bev = np.load(load_path_bev)
                 mlc = np.load(load_path_mlc)
                 
+                true_weights = torch.from_numpy(np.expand_dims(np.expand_dims(np.amax(mlc, axis = (1,2)), -1),-1)).float().cuda()
+                
                 # Reset optimizer gradient
                 optimizer.zero_grad()
                 
@@ -201,8 +218,8 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
                 mlc_truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc, axis = 0), axis = 0)).to(device)
                 
                 ## Compute loss
-                #loss = mlc_loss(output, mlc_truth)
-                loss = bce_loss(output, mlc_truth)
+                loss = bceloss(output, mlc_truth)
+                #loss = weighted_bce_loss(output, mlc_truth, true_weights, model.fin_weight.detach())
                     
                 # Transfer output to cpu
                 output_cpu = output.cpu()

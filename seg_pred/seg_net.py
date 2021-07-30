@@ -119,6 +119,7 @@ class Seg_Net(nn.Module):
         x = self.sig(self.output(x))
         return x
 
+# A block of 3d convolution or transpose convolution, batch normalization and relu/leakyrelu, used in pixnet
 class Block(nn.Module):
     def __init__(self, in_channels, out_channels, down=True, act ="relu", use_dropout=False):
         super().__init__()
@@ -144,24 +145,26 @@ class pixnet(nn.Module):
         self.initial_down = nn.Sequential(
             nn.Conv3d(in_channels, features, 4, 2, 1),
             nn.LeakyReLU(0.2),
-        ) #192,64,64 -> 96,32,32 & 4 -> 64 channels
+        ) #192,128,128 -> 96,64,64 & 4 -> 64 channels
         
-        self.down1 = Block(features, features*2, down=True, act = "leaky", use_dropout=False) # 96x32x32 --> 48x16x16  64->128 channels
-        self.down2 = Block(features*2, features*4, down=True, act = "leaky", use_dropout=False) # 48x16x16 --> 24x8x8   128 -> 256 channels
-        self.down3 = Block(features*4, features*8, down=True, act = "leaky", use_dropout=False) # 24x8x8 --> 12x4x4    256 -> 512 channels
-        self.down4 = Block(features*8, features*8, down=True, act = "leaky", use_dropout=False) # 12x4x4 --> 6x2x2  512-> 512 channels
+        self.down1 = Block(features, features*2, down=True, act = "leaky", use_dropout=False) # 96x64x64 --> 48x32x32  64->128 channels
+        self.down2 = Block(features*2, features*4, down=True, act = "leaky", use_dropout=False) # 48x32x32 --> 24x16x16   128 -> 256 channels
+        self.down3 = Block(features*4, features*8, down=True, act = "leaky", use_dropout=False) # 24x16x16 --> 12x8x8    256 -> 512 channels
+        self.down4 = Block(features*8, features*8, down=True, act = "leaky", use_dropout=False) # 12x8x8 --> 6x4x4  512-> 512 channels
         self.bottleneck = nn.Sequential(
-            nn.Conv3d(features*8, features*8, 4, 2, 1), nn.ReLU(), #6x2x2 -> 3x1x1  512-> 512 channels
+            nn.Conv3d(features*8, features*8, 4, 2, 1), nn.ReLU(), #6x4x4 -> 3x2x2  512-> 512 channels
         )
-        self.up1 = Block(features*8, features*8, down=False, act="relu", use_dropout=True) #3x1x1 -> 6x2x2 512->512 channels
-        self.up2 = Block(features*8*2, features*8, down=False, act="relu", use_dropout=True)#6x2x2 -> 12x4x4 512+512 -> 512 channels
-        self.up3 = Block(features*8*2, features*4, down=False, act="relu", use_dropout=False)#12x4x4 -> 24x8x8 512+512 -> 256 channels
-        self.up4 = Block(features*4*2, features*2, down=False, act="relu", use_dropout=False)#24x8x8->48x16x16 256+256 -> 128 channels
-        self.up5 = Block(features*2*2, features, down=False, act="relu", use_dropout=False)#48x16x16 -> 96x32x32 128+128 -> 64 channels
+        self.up1 = Block(features*8, features*8, down=False, act="relu", use_dropout=True) #3x2x2 -> 6x4x4 512->512 channels
+        self.up2 = Block(features*8*2, features*8, down=False, act="relu", use_dropout=True)#6x4x4 -> 12x8x8 512+512 -> 512 channels
+        self.up3 = Block(features*8*2, features*4, down=False, act="relu", use_dropout=False)#12x8x8 -> 24x16x16 512+512 -> 256 channels
+        self.up4 = Block(features*4*2, features*2, down=False, act="relu", use_dropout=False)#24x16x16->48x32x32 256+256 -> 128 channels
+        self.up5 = Block(features*2*2, features, down=False, act="relu", use_dropout=False)#48x32x32 -> 96x64x64 128+128 -> 64 channels
         self.final_up = nn.Sequential(
-            nn.ConvTranspose3d(features*2, 1,kernel_size=4,stride=2,padding=1), #96x32x32 -> 192x64x64 64+64 -> 1 channels
+            nn.ConvTranspose3d(features*2, 1,kernel_size=4,stride=2,padding=1), #96x64x64 -> 192x128x128 64+64 -> 1 channels
             nn.Sigmoid(),
         )
+        #self.fin_weight = nn.Parameter(torch.ones(192,1,1)*0.014)
+        #self.fin_weight.requires_grad = True
         
     def forward(self, x):
         d1 = self.initial_down(x)
@@ -175,5 +178,20 @@ class pixnet(nn.Module):
         u3 = self.up3(torch.cat([u2,d4], dim=1))
         u4 = self.up4(torch.cat([u3,d3], dim=1))
         u5 = self.up5(torch.cat([u4,d2], dim=1))
-        return self.final_up(torch.cat([u5,d1],dim=1))
-        
+        u5 = self.final_up(torch.cat([u5,d1], dim=1))
+        #u5 = torch.mul(u5, self.fin_weight)
+        return u5
+
+def test():
+    x = torch.randn((1,4,192,128,128))
+    model = pixnet()
+    preds = model(x)
+    #weight = model.fin_weight
+    #print(weight)
+    #print(preds.shape)
+    #for name, param in model.named_parameters():
+    #    if param.requires_grad:
+    #        print(name, param.data)
+
+if __name__ == "__main__":
+    test()        
