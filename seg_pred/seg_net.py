@@ -147,40 +147,91 @@ class pixnet(nn.Module):
             nn.LeakyReLU(0.2),
         ) #192,128,128 -> 96,64,64 & 4 -> 64 channels
         
-        self.down1 = Block(features, features*2, down=True, act = "leaky", use_dropout=False) # 96x64x64 --> 48x32x32  64->128 channels
-        self.down2 = Block(features*2, features*4, down=True, act = "leaky", use_dropout=False) # 48x32x32 --> 24x16x16   128 -> 256 channels
-        self.down3 = Block(features*4, features*8, down=True, act = "leaky", use_dropout=False) # 24x16x16 --> 12x8x8    256 -> 512 channels
-        self.down4 = Block(features*8, features*8, down=True, act = "leaky", use_dropout=False) # 12x8x8 --> 6x4x4  512-> 512 channels
+        self.down1 = Block(features, features*2, down=True, act = "leaky", use_dropout=True) # 96x64x64 --> 48x32x32  64->128 channels
+        self.down2 = Block(features*2, features*4, down=True, act = "leaky", use_dropout=True) # 48x32x32 --> 24x16x16   128 -> 256 channels
+        self.down3 = Block(features*4, features*8, down=True, act = "leaky", use_dropout=True) # 24x16x16 --> 12x8x8    256 -> 512 channels
+        self.down4 = Block(features*8, features*8, down=True, act = "leaky", use_dropout=True) # 12x8x8 --> 6x4x4  512-> 512 channels
         self.bottleneck = nn.Sequential(
             nn.Conv3d(features*8, features*8, 4, 2, 1), nn.ReLU(), #6x4x4 -> 3x2x2  512-> 512 channels
         )
         self.up1 = Block(features*8, features*8, down=False, act="relu", use_dropout=True) #3x2x2 -> 6x4x4 512->512 channels
         self.up2 = Block(features*8*2, features*8, down=False, act="relu", use_dropout=True)#6x4x4 -> 12x8x8 512+512 -> 512 channels
-        self.up3 = Block(features*8*2, features*4, down=False, act="relu", use_dropout=False)#12x8x8 -> 24x16x16 512+512 -> 256 channels
-        self.up4 = Block(features*4*2, features*2, down=False, act="relu", use_dropout=False)#24x16x16->48x32x32 256+256 -> 128 channels
-        self.up5 = Block(features*2*2, features, down=False, act="relu", use_dropout=False)#48x32x32 -> 96x64x64 128+128 -> 64 channels
+        self.up3 = Block(features*8*2, features*4, down=False, act="relu", use_dropout=True)#12x8x8 -> 24x16x16 512+512 -> 256 channels
+        self.up4 = Block(features*4*2, features*2, down=False, act="relu", use_dropout=True)#24x16x16->48x32x32 256+256 -> 128 channels
+        self.up5 = Block(features*2*2, features, down=False, act="relu", use_dropout=True)#48x32x32 -> 96x64x64 128+128 -> 64 channels
         self.final_up = nn.Sequential(
             nn.ConvTranspose3d(features*2, 1,kernel_size=4,stride=2,padding=1), #96x64x64 -> 192x128x128 64+64 -> 1 channels
             nn.Sigmoid(),
         )
+
+        self.weight1 = nn.Sequential(#128 --> 64
+            nn.Conv3d(in_channels, 1, (3,4,4), (1,2,2), 1),
+            nn.LeakyReLU(0.2),
+        )
+        self.weight2 = nn.Sequential(#64 -->32
+            nn.Conv3d(1,1, (3,4,4), (1,2,2), 1),
+            nn.BatchNorm3d(1),
+            nn.LeakyReLU(0.2),
+        )
+        self.weight3 = nn.Sequential(#32 --> 16
+            nn.Conv3d(1,1, (3,4,4), (1,2,2), 1),
+            nn.BatchNorm3d(1),
+            nn.LeakyReLU(0.2),
+        )
+        self.weight4 = nn.Sequential(#16-->8
+            nn.Conv3d(1,1, (3,4,4), (1,2,2), 1),
+            nn.BatchNorm3d(1),
+            nn.LeakyReLU(0.2),
+        )
+        self.weight5 = nn.Sequential(#8 -->4
+            nn.Conv3d(1,1, (3,4,4), (1,2,2), 1),
+            nn.BatchNorm3d(1),
+            nn.LeakyReLU(0.2),
+        )
+        self.weight6 = nn.Sequential(#4 --> 2 
+            nn.Conv3d(1,1, (3,4,4), (1,2,2), 1),
+            nn.BatchNorm3d(1),
+            nn.LeakyReLU(0.2),
+        )
+        self.weight7 = nn.Sequential(#2-->1
+            nn.Conv3d(1,1, (3,4,4), (1,2,2), 1),
+            nn.BatchNorm3d(1),
+            nn.Sigmoid(),
+        )
+        #self.FClayer1 = nn.Sequential(
+        #    nn.Linear(6144, 192),
+        #    nn.ReLU(),
+        #)
+        #self.FClayer2 = nn.Sequential(
+        #    nn.Linear(192,192),
+        #    nn.ReLU(),
+        #)
+        #self.FClayer3 = nn.Sequential(
+        #    nn.Linear(192,192),
+        #    nn.Sigmoid(),
+        #)
         #self.fin_weight = nn.Parameter(torch.ones(192,1,1)*0.014)
         #self.fin_weight.requires_grad = True
         
     def forward(self, x):
         d1 = self.initial_down(x)
+        w1 = self.weight7(self.weight6(self.weight5(self.weight4(self.weight3(self.weight2(self.weight1(x)))))))
         d2 = self.down1(d1)
         d3 = self.down2(d2)
         d4 = self.down3(d3)
         d5 = self.down4(d4)
         bottleneck = self.bottleneck(d5)
+        
+        #w1 = torch.unsqueeze(torch.unsqueeze(self.FClayer3(self.FClayer2(self.FClayer1(torch.flatten(bottleneck)))),1),2)
+        
         u1 = self.up1(bottleneck)
         u2 = self.up2(torch.cat([u1,d5], dim=1))
         u3 = self.up3(torch.cat([u2,d4], dim=1))
         u4 = self.up4(torch.cat([u3,d3], dim=1))
         u5 = self.up5(torch.cat([u4,d2], dim=1))
         u5 = self.final_up(torch.cat([u5,d1], dim=1))
-        #u5 = torch.mul(u5, self.fin_weight)
-        return u5
+        #u5 = torch.mul(u5, w1)
+        return u5, w1
 
 def test():
     x = torch.randn((1,4,192,128,128))

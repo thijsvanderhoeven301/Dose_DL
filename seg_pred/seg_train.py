@@ -13,18 +13,25 @@ def weighted_bce_loss(preds, truths,true_weights, pr_weight):
     #gt_weight = torch.amax(truths, dim=(3,4)).unsqueeze(dim=-1).unsqueeze(dim=-1)
     # Convert the prediction and truths back to bineary maps for the bce loss function using the true and predicted weigths
     truths_bin = truths/(true_weights + (true_weights == 0).float())
-    preds_bin = preds/(pr_weight + (pr_weight == 0).float())
+    #preds_bin = preds/(pr_weight + (pr_weight == 0).float())
     
     #Initialize bce loss function
     bceloss = nn.BCELoss()
     
     #Combine the bce loss of the aperture and the mse loss of the weight prediction
-    loss = bceloss(preds_bin, truths_bin) + torch.mean((true_weights-pr_weight)**2)
+    loss = bceloss(preds, truths_bin) + 100*torch.mean((true_weights-pr_weight)**2)
     #print("BCE loss is: ")
-    #print(bceloss(preds_bin, truths_bin))
+    #print(bceloss(preds, truths_bin))
     #print("MSE loss is: ")
-    #print(torch.mean((true_weights-pr_weight)**2))
+    #print(100*torch.mean((true_weights-pr_weight)**2))
 
+    return loss
+
+def mse_loss(preds, truths, true_weights, pr_weight):
+    truths_bin = truths/(true_weights + (true_weights == 0).float())
+    loss1 = torch.mean((truths_bin-preds)**2)
+    loss2 = torch.mean((true_weights-pr_weight)**2)
+    loss = loss1 + loss2
     return loss
     
 def slice_dice(output, truth):
@@ -49,7 +56,7 @@ def weights_init(m):
     if isinstance(m, nn.BatchNorm3d):
         m.reset_parameters()
 
-def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol, limit, monitor):
+def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol, limit, monitor, learn_rate):
 
     # Initialize loss values, and time variable
     training_loss = []
@@ -76,7 +83,7 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
 
     # Initialize the network
     model = pixnet()
-    optimizer = optim.Adam(model.parameters(), lr=1e-03)
+    optimizer = optim.Adam(model.parameters(), lr=learn_rate)
 
     #Apply weights either pretrained or initiated
     if load_model:
@@ -100,8 +107,6 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
     
     # Set epoch counter
     epoch = 0
-    
-    bceloss = nn.BCELoss()
     
     # Early stopping parameters
     improve = True
@@ -133,7 +138,7 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
             bev = np.load(load_path_bev)
             mlc = np.load(load_path_mlc)
             
-            #true_weights = torch.from_numpy(np.expand_dims(np.expand_dims(np.amax(mlc, axis = (1,2)), -1),-1)).float().cuda()
+            true_weights = torch.from_numpy(np.expand_dims(np.expand_dims(np.amax(mlc, axis = (1,2)), -1),-1)).float().cuda()
             
             # Reset optimizer gradient
             optimizer.zero_grad()
@@ -142,21 +147,28 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
             bev_inp = torch.Tensor(np.expand_dims(bev, axis=0)).to(device)
                 
             # Feed the bev forward through model
-            output = model(bev_inp)
+            pred, pred_weights = model(bev_inp)
+            #print(pred_weights[90])
+            #print(true_weights[90])
             del bev_inp
 
             # Transform mlc ground truth to tensor for (and add dimensions for the channel and batch)
             mlc_truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc, axis = 0), axis = 0)).to(device)
             
             # Compute loss (simple MSE loss is used now)
-            loss = bceloss(output, mlc_truth)
-            #loss = weighted_bce_loss(output, mlc_truth, true_weights, model.fin_weight.detach())
+            #scaled_pred = pred*torch.unsqueeze(torch.unsqueeze(pred_weights, 0), 0)
+            #loss = mseloss(scaled_pred, mlc_truth)
+            #loss = weighted_bce_loss(pred, mlc_truth, true_weights, pred_weights)
+            loss = mse_loss(pred, mlc_truth, true_weights, pred_weights)
                 
             # Transfer output to cpu
-            output_cpu = output.cpu()
+            output_cpu = pred.cpu()
+            weights_cpu = pred_weights.cpu()
             
             # Free gpu memory
-            del output
+            del pred
+            del pred_weights
+            #del scaled_pred
             del mlc_truth
             
             # Perform optimization
@@ -211,21 +223,27 @@ def seg_train(cuda, load_model, save_model, N_pat, N_val, patience, stopping_tol
                 bev_inp = torch.Tensor(np.expand_dims(bev, axis=0)).to(device)
                     
                 # Feed the bev forward through model
-                output = model(bev_inp)
+                pred, pred_weights = model(bev_inp)
                 del bev_inp
     
                 # Transform ground truth to tensor form and add channel and batch dimension
                 mlc_truth = torch.Tensor(np.expand_dims(np.expand_dims(mlc, axis = 0), axis = 0)).to(device)
                 
                 ## Compute loss
-                loss = bceloss(output, mlc_truth)
-                #loss = weighted_bce_loss(output, mlc_truth, true_weights, model.fin_weight.detach())
+                # Compute loss (simple MSE loss is used now)
+                #scaled_pred = pred*torch.unsqueeze(torch.unsqueeze(pred_weights, 0), 0)
+                #loss = mseloss(scaled_pred, mlc_truth)
+                #loss = weighted_bce_loss(pred, mlc_truth, true_weights, pred_weights)
+                loss = mse_loss(pred, mlc_truth, true_weights, pred_weights)
                     
                 # Transfer output to cpu
-                output_cpu = output.cpu()
+                output_cpu = pred.cpu()
+                weights_cpu = pred_weights.cpu()
                 
                 # Free gpu memory
-                del output
+                del pred
+                del pred_weights
+                #del scaled_pred
                 del mlc_truth
                 
                 # Add current loss to running loss list

@@ -149,7 +149,7 @@ def weights_init(m):
     if isinstance(m, nn.BatchNorm3d):
         m.reset_parameters()
 
-def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, weights, patience, stopping_tol, limit, monitor):
+def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, weights, patience, stopping_tol, limit, monitor, learnrate):
 
     # Initialize loss values, and time variable
     training_loss = []
@@ -176,7 +176,7 @@ def model_train(augment, cuda, load_model, save_model, loss_type, N_pat, N_val, 
 
     # Initialize the network
     model = UNet()
-    optimizer = optim.Adam(model.parameters(), lr=1e-03)
+    optimizer = optim.Adam(model.parameters(), lr=learnrate)
 
     #Apply weights either pretrained or initiated
     if load_model:
@@ -466,7 +466,7 @@ def model_train_batch(augment, cuda, load_model, save_model, loss_type, N_pat, N
 
     # Initialize the network
     model = UNet_batch()
-    optimizer = optim.Adam(model.parameters(), lr=1e-03)
+    optimizer = optim.Adam(model.parameters(), lr=1e-04)
 
     #Apply weights either pretrained or initiated
     if load_model:

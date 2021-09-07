@@ -106,7 +106,7 @@ class UNet(nn.Module):
         
         x = torch.cat((x, x1), dim=1)
         del x1
-        return self.output(self.dropout1(self.GN1_4(F.relu(self.conv1_3(self.dropout1(self.GN1_3(F.relu(self.convup4(x)))))))))
+        return F.relu(self.output(self.dropout1(self.GN1_4(F.relu(self.conv1_3(self.dropout1(self.GN1_3(F.relu(self.convup4(x))))))))))
 
 class UNet_batch(nn.Module):
     def __init__(self,

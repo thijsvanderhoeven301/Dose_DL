@@ -12,10 +12,11 @@ save_model = True                      # Whether or not to save the model parame
 load_model = False                      # Whether or not to load model parameters from a previous train
 N_patients = 64                          # Number of patients to use during training, max is 64 training patients
 N_val = 13                               # Number of patients to use during validation, max is 13 validation patients
-patience = 40
+patience = 150
 stopping_tol = 0
-limit = 300 #+1
+limit = 1000 #+1
 monitor = True
+learn_rate = 1e-4
 
 # Execute training scripts
-train, train_std, val, val_std, epoch_tot, time, epoch_best = seg_train(cuda, load_model, save_model, N_patients, N_val, patience, stopping_tol, limit, monitor)
+train, train_std, val, val_std, epoch_tot, time, epoch_best = seg_train(cuda, load_model, save_model, N_patients, N_val, patience, stopping_tol, limit, monitor, learn_rate)
