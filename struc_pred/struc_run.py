@@ -7,7 +7,7 @@ from struc_train import model_train_batch, model_train
 
 # Setting the training parameters
 cuda = True
-batchnorm = True                            # Whether to use CUDA or not
+batchnorm = False                            # Whether to use CUDA or not
 loss_type = 'weighted'                 # Set type of loss function 'MSE', 'weighted', or 'heaviside'
 if loss_type == 'weighted':
     weightsmse = [1, 4, 8]           # Weights used in case of weighted MSE loss function
@@ -18,7 +18,7 @@ elif loss_type == 'heaviside':
 else:
     weights = 0
 save_model = True                      # Whether or not to save the model parameters after training
-load_model = True                     # Whether or not to load model parameters from a previous training
+load_model = False                     # Whether or not to load model parameters from a previous training
 augment = False                        # Whether or not to use augmentation during training
 N_patients = 64                          # Number of patients to use during training, max is 64 training patients
 N_val = 13                               # Number of patients to use during validation, max is 13 validation patients
